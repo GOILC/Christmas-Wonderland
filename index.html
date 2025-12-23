@@ -178,15 +178,19 @@
 
         let lastVideoTime = -1;
         function detectHands(handLandmarker) {
-            if (video.currentTime !== lastVideoTime) {
-                const results = handLandmarker.detectForVideo(video, performance.now());
-                if (results.landmarks && results.landmarks.length > 0) {
-                    processGesture(results.landmarks[0]);
-                }
-                lastVideoTime = video.currentTime;
+    if (video.currentTime !== lastVideoTime && video.readyState >= 2 && video.videoWidth > 0) {
+        try {
+            const results = handLandmarker.detectForVideo(video, performance.now());
+            if (results.landmarks && results.landmarks.length > 0) {
+                processGesture(results.landmarks[0]);
             }
-            requestAnimationFrame(() => detectHands(handLandmarker));
+        } catch (error) {
+            console.error("MediaPipe 检测跳过一帧:", error);
         }
+        lastVideoTime = video.currentTime;
+    }
+    requestAnimationFrame(() => detectHands(handLandmarker));
+}
 
         // --- 手势逻辑核心 ---
         function processGesture(landmarks) {
@@ -267,3 +271,4 @@
 </body>
 
 </html>  
+
