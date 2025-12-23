@@ -137,13 +137,52 @@
 
         // --- 4. 逻辑与交互 ---
         async function initApp() {
-            try {
-                const { HandLandmarker, FilesetResolver } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0");
-                const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
-                const handLandmarker = await HandLandmarker.createFromOptions(vision, {
-                    baseOptions: { modelAssetPath: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/hand_landmarker.task` },
-                    runningMode: "VIDEO", numHands: 1
-                });
+    try {
+        // 1. 加载 MediaPipe 视觉任务库
+        const { HandLandmarker, FilesetResolver } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0");
+        
+        // 2. 核心修复：强制指定 WASM 运行环境的绝对路径，防止 404
+        const vision = await FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+        );
+        
+        // 3. 初始化手势识别器
+        const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { 
+                // 强制指定模型文件的绝对路径
+                modelAssetPath: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/hand_landmarker.task`,
+                delegate: "GPU" // 手机端优先使用 GPU 提高性能
+            },
+            runningMode: "VIDEO", 
+            numHands: 1
+        });
+
+        // 4. 移动端优化版摄像头配置
+        const constraints = {
+            audio: false, 
+            video: {
+                facingMode: "user",
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.getElementById('video-input');
+        video.srcObject = stream;
+        
+        // 5. 确保视频流就绪后再隐藏加载动画
+        video.onloadeddata = () => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status-text').innerText = "✨ 魔法已就绪，请伸出手掌";
+            detectHands(handLandmarker, video);
+        };
+    } catch (err) {
+        // 这里的报错提示可以帮你快速定位问题
+        document.getElementById('loading').innerHTML = `魔法唤醒失败<br><span style="font-size:12px;color:red;">${err.message}</span><br>请检查摄像头权限及HTTPS连接`;
+        console.error("初始化错误详情:", err);
+    }
+}
 
                 const constraints = {
     video: {
@@ -222,4 +261,5 @@ const stream = await navigator.mediaDevices.getUserMedia(constraints);
     </script>
 </body>
 </html>
+
 
